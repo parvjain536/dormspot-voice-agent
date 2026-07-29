@@ -46,7 +46,7 @@ def read_root():
         "documentation": "/docs"
     }
 
-@app.get("/availability", summary="Search hostel availability by city")
+@app.get("/availability", operation_id="check_availability", summary="Search hostel availability by city")
 def check_availability(city: str = Query(..., description="Name of the city to search hostels in (e.g. Bhopal, Indore, Pune, Gwalior)")):
     """
     Search available hostels in a specific city. Returns details such as room types,
@@ -70,7 +70,7 @@ def check_availability(city: str = Query(..., description="Name of the city to s
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database query failed: {str(e)}")
 
-@app.get("/hostel/{hostel_id}", summary="Get detailed information about a specific hostel")
+@app.get("/hostel/{hostel_id}",operation_id="get_hostel_details", summary="Get detailed information about a specific hostel")
 def get_hostel_details(hostel_id: str):
     """
     Fetch comprehensive details for a specific hostel using its unique ID.
@@ -88,7 +88,7 @@ def get_hostel_details(hostel_id: str):
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-@app.post("/booking", summary="Create a new hostel booking reservation")
+@app.post("/booking",operation_id="create_booking", summary="Create a new hostel booking reservation")
 def create_booking(
     hostel_id: str = Query(..., description="ID of the hostel to book"),
     guest_name: str = Query(..., description="Full name of the guest"),
