@@ -12,7 +12,10 @@ load_dotenv()
 app = FastAPI(
     title="DormSpot Voice AI API",
     description="Backend tool provider for Amazon Nova Sonic voice agent dealing with hostel and PG room bookings.",
-    version="1.0.0"
+    version="1.0.0",
+    servers=[
+        {"url": "https://dormspot-voice-agent.onrender.com", "description": "Production server"}
+    ]
 )
 
 # Enable CORS for external tool callers (AgentCore Gateway / Amazon Connect)
