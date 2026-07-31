@@ -1,5 +1,33 @@
-venv/
+# Environment / secrets
 .env
+.env.local
+.env.production.local
+.env.*.local
+*.pem
+*.key
+
+# Node
+node_modules/
+npm-debug.log*
+
+# CDK
+voice-agent/cdk/cdk.out/
+voice-agent/cdk/cdk.context.json
+
+# Frontend build output
+voice-agent/frontend/dist/
+
+# Python
 __pycache__/
 *.pyc
+venv/
+.venv/
+
+# Logs / debug artifacts
+*.log
+agent_log.json
+latest_log.json
+
+# OS
 .DS_Store
+Thumbs.db

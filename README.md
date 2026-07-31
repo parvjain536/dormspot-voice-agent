@@ -1,83 +1,123 @@
-# 🎙️ DormSpot — AI Voice Self-Service Agent for Hostel Bookings
+# 🎙️ DormSpot — Voice AI Hostel Booking Agent
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![AWS Bedrock Nova Sonic](https://img.shields.io/badge/AWS-Amazon%20Nova%20Sonic-FF9900?style=for-the-badge&logo=amazonaws)](https://aws.amazon.com/bedrock/)
-[![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase)](https://supabase.com/)
+A real-time, voice-driven AI assistant that finds and books hostel / PG rooms through natural spoken conversation — no typing, no forms. Built on **Amazon Nova Sonic** (real-time bidirectional speech AI) via **AWS Bedrock AgentCore**, with a custom **FastAPI + Supabase** backend.
 
-An original Voice AI solution built for the **DataSleek Hiring Assignment**. Powered by **Amazon Nova Sonic (Speech-to-Speech)** on Bedrock, **Amazon Connect**, **AgentCore Gateway (MCP)**, and a **FastAPI + Supabase** backend.
+**🔗 Live demo:** https://dz2rgtctzefud.cloudfront.net
+**🔗 Backend API docs:** https://dormspot-voice-agent.onrender.com/docs
 
 ---
 
-## 📁 Repository Structure
+## What it does
 
-```
+A user opens the web app, signs in, and simply talks. The assistant:
+- Greets them and asks which city they want to stay in
+- Looks up real, live room availability and pricing
+- Collects booking details by voice (name, phone, dates)
+- Confirms a real booking with a unique reference code — stored in a live database
+
+Every fact the assistant states comes from a real, live tool call — it never invents prices or availability (this is explicitly enforced in its system prompt).
+
+---
+
+## Architecture
+
+| Layer | Technology |
+|---|---|
+| Frontend | React + Vite, hosted on S3 + CloudFront |
+| Auth | Amazon Cognito (sign-up/login, temporary credentials) |
+| Voice AI | Amazon Nova Sonic on Bedrock AgentCore Runtime |
+| Agent framework | Python, FastAPI, Strands Agents (BidiAgent) |
+| Backend API | FastAPI, deployed on Render |
+| Database | Supabase (Postgres) |
+| Infrastructure | AWS CDK (all AWS resources defined as code) |
+
+User's browser (CloudFront + S3 — React frontend)
+│ Login via Cognito
+│ WebSocket connection
+▼
+AWS Bedrock AgentCore Runtime (Nova Sonic + Strands BidiAgent)
+│ Tool calls when data is needed
+▼
+FastAPI backend (Render)
+│
+▼
+Supabase (Postgres — hostels & bookings)
+
+An Amazon Bedrock AgentCore **Gateway** was also configured, registering the backend's OpenAPI schema as a formal tool target — an alternative integration path alongside the direct HTTP calls used by the deployed agent.
+
+---
+
+## Repository Structure
+
 dormspot-voice-agent/
-├── main.py              # FastAPI application & tool endpoints
-├── schema.sql           # Supabase SQL database schema & seed data
-├── system_prompt.txt    # Nova Sonic voice agent system prompt & turn rules
-├── writeup.md           # Submission write-up (Architecture, Trade-offs, Future Scope)
-├── requirements.txt     # Python dependencies
-└── .env.example         # Environment variables template
+├── backend/ # FastAPI + Supabase backend (deployed on Render)
+│ ├── main.py # API endpoints: /availability, /hostel/{id}, /booking
+│ ├── schema.sql # Supabase table definitions + seed data
+│ ├── system_prompt.txt # Reference copy of the agent's system prompt
+│ ├── requirements.txt
+│ └── .env.example
+│
+├── voice-agent/ # Voice agent + frontend + AWS infrastructure
+│ ├── agent/
+│ │ └── strands_agent.py # BidiAgent: Nova Sonic, tools, system prompt
+│ ├── frontend/ # React/Vite web app (mic capture, playback, chat UI)
+│ ├── cdk/ # AWS CDK infrastructure (Runtime, Cognito, S3/CloudFront)
+│ └── scripts/ # Deployment scripts (deploy-all, build-frontend)
+│
+└── README.md
+
+This project was originally built on top of AWS's official sample, [`aws-samples/sample-nova-sonic-websocket-agentcore`](https://github.com/aws-samples/sample-nova-sonic-websocket-agentcore), which provided the base WebSocket/voice-streaming plumbing, CDK infrastructure, and deployment scripts. The DormSpot persona, tools, database, and backend API are custom work built on top of that foundation.
+
+---
+
+## Running It Yourself
+
+### 1. Database (Supabase)
+1. Create a free Supabase project.
+2. Run `backend/schema.sql` in the SQL Editor to create the `hostels` and `bookings` tables.
+3. Copy your Project URL and anon key from Project Settings → API.
+
+### 2. Backend (FastAPI)
+```bash
+cd backend
+python -m venv venv
+venv\Scripts\activate          # or source venv/bin/activate on macOS/Linux
+pip install -r requirements.txt
+cp .env.example .env           # then fill in SUPABASE_URL and SUPABASE_KEY
+uvicorn main:app --reload
 ```
+Visit `http://localhost:8000/docs` to test the API directly.
+
+### 3. Voice Agent + Frontend (AWS)
+Requires an AWS account and the AWS CLI configured.
+```bash
+cd voice-agent
+./deploy-all.ps1        # PowerShell 7 (pwsh) recommended
+```
+This deploys the Cognito auth, Bedrock AgentCore runtime, and the S3/CloudFront-hosted frontend. See `voice-agent/scripts/` for individual build/deploy steps.
 
 ---
 
-## ⚡ Quick Start Setup
+## How the Agent's Behavior Is Defined
 
-### 1. Database Setup (Supabase)
-1. Go to [Supabase](https://supabase.com) (Free Tier) and create a new project named `dormspot-db`.
-2. Open the **SQL Editor** in Supabase and paste the contents of `schema.sql`.
-3. Click **Run** to generate the `hostels` and `bookings` tables and seed dummy data for Bhopal, Indore, Pune, and Gwalior.
-4. Copy your `Project URL` and `anon public key` from **Project Settings -> API**.
+Nova Sonic is a general-purpose, pretrained voice model — nothing here was fine-tuned or trained. Its DormSpot behavior comes entirely from a system prompt and a small set of tools:
 
-### 2. Backend API Setup (Local)
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/your-username/dormspot-voice-agent.git
-   cd dormspot-voice-agent
-   ```
-2. Create and activate a virtual environment:
-   ```bash
-   python -m venv venv
-   # On Windows:
-   venv\Scripts\activate
-   # On macOS/Linux:
-   source venv/bin/activate
-   ```
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Create a `.env` file from `.env.example`:
-   ```bash
-   cp .env.example .env
-   ```
-   Add your `SUPABASE_URL` and `SUPABASE_KEY` inside `.env`.
+check_availability(city) → searches real listings by city
+get_hostel_details(hostel_id) → fetches one listing's full details
+create_booking(...) → creates a real booking, decrements availability
 
-5. Run the FastAPI development server:
-   ```bash
-   uvicorn main:app --reload
-   ```
-6. Open your browser to `http://localhost:8000/docs` to test the live API endpoints!
+The system prompt explicitly instructs the model to only state facts returned by these tools, and never to invent pricing or availability.
 
 ---
 
-## 🚀 Public Deployment (Free)
+## Known Limitations
 
-Deploy the FastAPI backend to [Render](https://render.com) or [Vercel](https://vercel.com) so that **AWS AgentCore Gateway** can reach your live API:
-
-1. Push your code to GitHub.
-2. Connect your repo to Render (New Web Service -> Python environment).
-3. Set Build Command: `pip install -r requirements.txt`
-4. Set Start Command: `uvicorn main:app --host 0.0.0.0 --port 10000`
-5. Add `SUPABASE_URL` and `SUPABASE_KEY` in Environment Variables.
-6. Copy your deployed HTTPS URL (e.g., `https://dormspot-api.onrender.com`).
+- The Render backend runs on a free tier, which sleeps after inactivity — the first request after idle time can take 30–60+ seconds.
+- Row Level Security (RLS) is currently disabled on the Supabase tables; for production use this should be enabled with appropriate policies.
+- Conversation memory is session-scoped only — a new agent session starts fresh with no memory of prior conversations.
 
 ---
 
-## 🎙️ AWS Bedrock & Amazon Connect Setup
+## Tech Stack
 
-1. In AWS Console (`us-east-1`), request access to **Amazon Nova Sonic** under Bedrock Model Access.
-2. Follow the AWS Workshop instructions to register your deployed API's OpenAPI spec (`https://dormspot-api.onrender.com/openapi.json`) into **AgentCore Gateway**.
-3. Set the System Prompt from `system_prompt.txt` inside your Amazon Connect Voice Flow configuration.
-4. Call your Amazon Connect phone number or use the WebRTC agent workspace to test the live voice conversation!
+![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi) ![AWS Bedrock](https://img.shields.io/badge/AWS%20Bedrock-FF9900?style=for-the-badge&logo=amazonaws) ![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase) ![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react)
